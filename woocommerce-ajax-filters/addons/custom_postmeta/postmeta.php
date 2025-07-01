@@ -41,6 +41,11 @@ class BeRocket_aapf_add_postmeta_filters {
     function filter_type_additional($settings_name, $braapf_filter_settings) {
         $custom_postmeta_list = $this->get_custom_postmeta();
         $custom_postmeta = br_get_value_from_array($braapf_filter_settings, 'custom_postmeta', '');
+        if( ! empty($custom_postmeta) && empty($custom_postmeta_list) ) {
+            $custom_postmeta_list = array(
+                'postmeta' => array($custom_postmeta => array('name' => $custom_postmeta))
+            );
+        }
         echo '<div class="braapf_custom_postmeta braapf_half_select_full">';
             echo '<label for="braapf_custom_postmeta">' . __('Custom Post Meta', 'BeRocket_AJAX_domain') . '</label>';
             echo '<select id="braapf_custom_postmeta" name="'.$settings_name.'[custom_postmeta]">';
@@ -228,7 +233,9 @@ GROUP BY meta_value ORDER BY meta_value");
             $result        = br_get_cache(apply_filters('berocket_recount_cache_key', md5(json_encode($query_imploded)), $taxonomy_data), 'berocket_recount');
         }
         if( empty($result) ) {
+            do_action('brapf_before_query', 'postmeta', $query_imploded);
             $result        = $wpdb->get_results( $query_imploded );
+            do_action('brapf_after_query', 'postmeta', $query_imploded);
             if($use_price_cache) {
                 br_set_cache(md5(json_encode($query_imploded)), $result, 'berocket_recount', DAY_IN_SECONDS);
             }
@@ -288,7 +295,7 @@ GROUP BY meta_value ORDER BY meta_value");
         return $terms;
     }
     function style_meta_name($name, $slug, $postname = false) {
-        if( ! empty($postname) && function_exists('get_field') ) {
+        if( ! empty($postname) && function_exists('acf_get_field') ) {
             $text_field = $this->acf_field_detect($postname, $name);
         } else {
             $text_field = maybe_unserialize($slug);
@@ -299,13 +306,13 @@ GROUP BY meta_value ORDER BY meta_value");
         return $text_field;
     }
     function style_name($text, $postname = false) {
-        if( ! empty($postname) && function_exists('get_field') ) {
+        if( ! empty($postname) && function_exists('acf_get_field') ) {
             $text_field = $this->acf_field_detect($postname, $text);
         } else {
             $text_field = maybe_unserialize($text);
         }
         if( is_array($text_field) ) {
-            $text_field = implode(', ', $text_field);
+            $text_field = self::r_implode(', ', $text_field);
         }
         $text_field = str_replace(array('_'), array(' '), $text_field);
         $text_field = trim($text_field);
@@ -318,6 +325,13 @@ GROUP BY meta_value ORDER BY meta_value");
         }
         $field = $this->acf_fields[$postname];
         $value = maybe_unserialize($text);
+        if( empty($field) || empty($field['type']) ) {
+            if( is_array($value) ) {
+                return implode(', ', $value);
+            } else {
+                return $value;
+            }
+        }
         switch($field['type']) {
             case 'image':
                 return wp_get_attachment_url($value);
@@ -405,7 +419,7 @@ GROUP BY meta_value ORDER BY meta_value");
         return $args;
     }
     function taxonomy_from_post_before($result, $post_data) {
-        if( $post_data['filter_type'] == 'custom_postmeta' ) {
+        if( isset( $post_data['filter_type'] ) and $post_data['filter_type'] == 'custom_postmeta' ) {
             $result = 'cpm_'.sanitize_text_field($post_data['custom_postmeta']);
         }
         return $result;
@@ -526,5 +540,18 @@ GROUP BY meta_value ORDER BY meta_value");
         }
         return $template_content;
     }
+
+	function r_implode( $glue, $array ) {
+        if ( ! is_array( $array ) )
+            return $array;
+
+		$result = array_shift( $array );
+
+		foreach ( $array as $item ) {
+			$result .= $glue . self::r_implode( $glue, $item );
+		}
+
+		return $result;
+	}
 }
 new BeRocket_aapf_add_postmeta_filters();

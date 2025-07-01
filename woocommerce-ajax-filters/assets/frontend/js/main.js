@@ -236,7 +236,7 @@ function braapf_filtered_filters_set() {
     //Pagination page
     jQuery(document).ready( function() {
         var pagination_links = the_ajax_script.pagination_class;
-        pagination_links = pagination_links.replace(',', ' a,');
+        pagination_links = pagination_links.replaceAll(',', ' a,');
         pagination_links = berocket_apply_filters('pagination_links_a_tags', pagination_links+' a', the_ajax_script.pagination_class);
         if( !the_ajax_script.disable_ajax_loading && the_ajax_script.pagination_ajax && $(the_ajax_script.products_holder_id).length ) {
             $(document).on('click', pagination_links, function(event) {
@@ -293,11 +293,15 @@ function braapf_filtered_filters_set() {
     });
     
     //default update products
-    braapf_get_url_with_filters_selected = function() {
+    braapf_get_filters_selected = function() {
         braapf_grab_all();
         var compat_filters = braapf_compact_filters();
         var filter_mask = berocket_apply_filters('braapf_filters_mask', the_ajax_script.url_mask);
         var filter_string = braapf_compat_filters_to_string(compat_filters, filter_mask, the_ajax_script.url_split);
+        return filter_string;
+    }
+    braapf_get_url_with_filters_selected = function() {
+        var filter_string = braapf_get_filters_selected();
         var current_url_data = braapf_get_current_url_data();
         current_url_data.filter = filter_string;
         current_url_data = braapf_remove_pages_from_url_data(current_url_data);
@@ -516,7 +520,7 @@ function braapf_filtered_filters_set() {
                 }
             }
         });
-        return berocket_apply_filters('get_current_url_data', {baselink:link, queryargs:query_arr, filter:"", page:page});
+        return berocket_apply_filters('get_current_url_data', {baselink:link, queryargs:query_arr, filter:"", page:page}, url, query);
     }
     braapf_remove_pages_from_url_data = function(url_data) {
         url_data.page = 1;
@@ -971,6 +975,11 @@ function braapf_filtered_filters_set() {
         }
         return data;
     }
+    jQuery(document).on('preInit.dt', '.berocket_product_table_compat .wc-product-table', function (e, settings, data) {
+        if( the_ajax_script.nice_urls && typeof(settings.ajax) == 'object' && settings.ajax ) {
+            settings.ajax.data[the_ajax_script.nice_url_variable] = braapf_get_filters_selected();
+        }
+    });
     berocket_add_filter('ajax_load_from_url_always_after', bapf_universal_theme_compatibility, 2500);
     $(document).ready(function(){
         if( berocket_apply_filters('remove_shortcode_fix_filters', $('.berocket_wc_shortcode_fix').length) ) {
@@ -1513,6 +1522,7 @@ braapf_jqrui_slidr_ion_values_link_arr_attr;
         berocket_add_filter('jqrui_slidr_ion_link_arr_attr', braapf_jqrui_slidr_ion_values_link_arr_attr);
         berocket_add_filter('jqrui_slidr_ion_link_arr_attr_price', braapf_jqrui_slidr_ion_values_link_arr_attr);
         berocket_add_filter('jqrui_slidr_ion_wc_price', braapf_jqrui_slidr_ion_value_wc_price);
+        berocket_add_filter('jqrui_slidr_ion_num_attr', braapf_jqrui_slidr_ion_value_wc_price);
         berocket_add_filter('jqrui_slidr_ion_arr_attr', braapf_jqrui_slidr_ion_value_arr_attr);
         berocket_add_filter('jqrui_slidr_ion_arr_attr_price', braapf_jqrui_slidr_ion_value_arr_attr, 10);
         berocket_add_filter('jqrui_slidr_ion_arr_attr_price', braapf_jqrui_slidr_ion_value_wc_price, 20);
@@ -1604,7 +1614,7 @@ jQuery(document).ready(function() {
         }
     }
     jQuery(document).on('berocket_ajax_filtering_on_update', function() {
-        if( typeof(jQuery('.bapf_sfilter .bapf_select2').select2) == 'function' ) {
+        if( jQuery('.bapf_sfilter .bapf_select2').length && typeof(jQuery('.bapf_sfilter .bapf_select2').select2) == 'function' ) {
             jQuery('.bapf_sfilter .bapf_select2').select2('close');
         }
         bapf_select2_disable_for_parent(jQuery(document));
@@ -1772,6 +1782,14 @@ braapf_jqrui_slidr_values_link_arr_attr;
             $slider.removeClass('bapf_jqrui_blocked');
         });
     }
+    braapf_jqrui_slidr_values_num_attr_style = function(values, $element) {
+        var number_style = $element.data('number_style');
+        if( number_style ) {
+            values[0] = berocket_format_number (values[0], number_style );
+            values[1] = berocket_format_number (values[1], number_style );
+        }
+        return values;
+    }
     braapf_jqrui_slidr_values_wc_price = function(values, $element) {
         var number_style = $element.data('number_style');
         if( ! number_style ) {
@@ -1832,6 +1850,7 @@ braapf_jqrui_slidr_values_link_arr_attr;
     });
     function braapf_jqrui_slidr_berocket_add_filter() {
         berocket_add_filter('jqrui_slidr_wc_price', braapf_jqrui_slidr_values_wc_price);
+        berocket_add_filter('jqrui_slidr_num_attr', braapf_jqrui_slidr_values_num_attr_style);
         berocket_add_filter('jqrui_slidr_arr_attr', braapf_jqrui_slidr_values_arr_attr);
         berocket_add_filter('jqrui_slidr_arr_attr_price', braapf_jqrui_slidr_values_arr_attr, 10);
         berocket_add_filter('jqrui_slidr_arr_attr_price', braapf_jqrui_slidr_values_wc_price, 20);
